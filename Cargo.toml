@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 license = "AGPL-3"
 description = "A proxy I've written to sit in front of my mastodon instance and do useful things."
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["Noah Kennedy"]
 
 [dependencies]
 axum = { version = "0.6.19", features = ["http1", "tokio", "tracing", "original-uri"] }
