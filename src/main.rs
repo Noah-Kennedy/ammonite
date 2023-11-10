@@ -7,7 +7,7 @@ use axum::middleware::{from_fn, Next};
 use axum::response::Response;
 use axum::Router;
 use clap::Parser;
-use hyper::{Client, Server};
+use hyper::{Client, Server, StatusCode};
 use metrics::histogram;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use std::time::Instant;
@@ -18,7 +18,17 @@ mod cli;
 mod state;
 
 async fn fallback(State(state): State<ProxyState>, request: Request<Body>) -> Response<Body> {
-    state.client.request(request).await.unwrap()
+    match state.client.request(request).await {
+        Ok(r) => r,
+        Err(error) => {
+            tracing::error!(message = "Internal error when talking to upstream", ?error);
+
+            Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(Body::empty())
+                .unwrap()
+        }
+    }
 }
 
 async fn observe<B>(request: Request<B>, next: Next<B>) -> Response {
