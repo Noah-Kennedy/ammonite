@@ -1,13 +1,13 @@
 use crate::cli::Args;
 use crate::state::ProxyState;
 use axum::body::Body;
-use axum::extract::State;
+use axum::extract::{Host, State};
 use axum::http::Request;
 use axum::middleware::{from_fn, Next};
 use axum::response::Response;
 use axum::Router;
 use clap::Parser;
-use hyper::{Client, Server, StatusCode};
+use hyper::{Client, Server, StatusCode, Uri};
 use metrics::histogram;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use std::time::Instant;
@@ -17,7 +17,20 @@ mod cli;
 
 mod state;
 
-async fn fallback(State(state): State<ProxyState>, request: Request<Body>) -> Response<Body> {
+async fn fallback(
+    Host(hostname): Host,
+    State(state): State<ProxyState>,
+    mut request: Request<Body>,
+) -> Response<Body> {
+    let uri = request.uri().clone();
+
+    *request.uri_mut() = Uri::builder()
+        .authority(hostname)
+        .scheme("http")
+        .path_and_query(uri.path_and_query().unwrap().clone())
+        .build()
+        .unwrap();
+
     match state.client.request(request).await {
         Ok(r) => r,
         Err(error) => {
