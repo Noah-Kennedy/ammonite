@@ -1,7 +1,7 @@
 use crate::cli::Args;
 use crate::state::ProxyState;
 use axum::body::Body;
-use axum::extract::{MatchedPath, State};
+use axum::extract::State;
 use axum::http::Request;
 use axum::middleware::{from_fn, Next};
 use axum::response::Response;
@@ -21,7 +21,7 @@ async fn fallback(State(state): State<ProxyState>, request: Request<Body>) -> Re
     state.client.request(request).await.unwrap()
 }
 
-async fn observe<B>(_matched_path: MatchedPath, request: Request<B>, next: Next<B>) -> Response {
+async fn observe<B>(request: Request<B>, next: Next<B>) -> Response {
     let uri = request.uri().clone();
     let method = request.method().clone();
 
