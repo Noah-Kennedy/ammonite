@@ -118,7 +118,7 @@ async fn main() {
     let args = Args::parse();
 
     tracing_subscriber::fmt::fmt()
-        .with_max_level(LevelFilter::TRACE)
+        .with_max_level(LevelFilter::INFO)
         .init();
 
     PrometheusBuilder::new()
