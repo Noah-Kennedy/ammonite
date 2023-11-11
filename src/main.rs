@@ -33,7 +33,7 @@ async fn fallback(
     let uri = request.uri().clone();
 
     *request.uri_mut() = Uri::builder()
-        .authority(hostname)
+        .authority(format!("{hostname}:{}", state.remote.port()))
         .scheme("http")
         .path_and_query(uri.path_and_query().unwrap().clone())
         .build()
@@ -111,10 +111,7 @@ async fn main() {
     let client =
         client_builder.build::<_, Body>(HttpConnector::new_with_resolver(Resolver { remote }));
 
-    let state = ProxyState {
-        client,
-        remote: args.remote,
-    };
+    let state = ProxyState { client, remote };
 
     Server::bind(&args.bind)
         .serve(
