@@ -7,10 +7,18 @@ use axum::middleware::{from_fn, Next};
 use axum::response::Response;
 use axum::Router;
 use clap::Parser;
+use hyper::client::connect::dns::Name;
+use hyper::client::HttpConnector;
 use hyper::{Client, Server, StatusCode, Uri};
 use metrics::histogram;
 use metrics_exporter_prometheus::PrometheusBuilder;
+use std::convert::Infallible;
+use std::future::{ready, Ready};
+use std::iter::{once, Once};
+use std::net::SocketAddr;
+use std::task::{Context, Poll};
 use std::time::Instant;
+use tower::Service;
 use tracing::level_filters::LevelFilter;
 
 mod cli;
@@ -96,8 +104,15 @@ async fn main() {
         .install()
         .unwrap();
 
+    let client_builder = Client::builder();
+
+    let remote = args.remote;
+
+    let client =
+        client_builder.build::<_, Body>(HttpConnector::new_with_resolver(Resolver { remote }));
+
     let state = ProxyState {
-        client: Client::new(),
+        client,
         remote: args.remote,
     };
 
@@ -111,4 +126,23 @@ async fn main() {
         )
         .await
         .unwrap();
+}
+
+#[derive(Clone)]
+pub struct Resolver {
+    pub remote: SocketAddr,
+}
+
+impl Service<Name> for Resolver {
+    type Response = Once<SocketAddr>;
+    type Error = Infallible;
+    type Future = Ready<Result<Self::Response, Self::Error>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, _req: Name) -> Self::Future {
+        ready(Ok::<_, Infallible>(once(self.remote)))
+    }
 }
