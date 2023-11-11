@@ -62,16 +62,18 @@ async fn observe<B>(request: Request<B>, next: Next<B>) -> Response {
 
     let delta = start.elapsed();
 
+    let display_status = response.status().as_u16().to_string();
+
     if response.status().is_client_error() || response.status().is_server_error() {
         counter!(
             "error_responses", 1,
-            "status" => response.status().to_string(),
+            "status" => display_status.clone(),
             "method" => method.to_string()
         );
 
         tracing::error!(
             message = "Serving error",
-            "status" = response.status().as_str(),
+            "status" = display_status,
             "uri" = uri.to_string(),
             "method" = method.as_str(),
             "time" = delta.as_secs_f64()
@@ -80,7 +82,7 @@ async fn observe<B>(request: Request<B>, next: Next<B>) -> Response {
         if response.status().is_redirection() {
             tracing::warn!(
                 message = "Serving redirect",
-                "status" = response.status().as_str(),
+                "status" = display_status,
                 "uri" = uri.to_string(),
                 "method" = method.as_str(),
                 "time" = delta.as_secs_f64()
@@ -88,20 +90,20 @@ async fn observe<B>(request: Request<B>, next: Next<B>) -> Response {
 
             counter!(
                 "redirect_responses", 1,
-                "status" => response.status().to_string(),
+                "status" => display_status.clone(),
                 "method" => method.to_string()
             );
         }
 
         counter!(
             "responses", 1,
-            "status" => response.status().to_string(),
+            "status" => display_status.clone(),
             "method" => method.to_string()
         );
 
         tracing::info!(
             message = "Serving response",
-            "status" = response.status().as_str(),
+            "status" = display_status,
             "uri" = uri.to_string(),
             "method" = method.as_str(),
             "time" = delta.as_secs_f64()
