@@ -10,7 +10,7 @@ use clap::Parser;
 use hyper::client::connect::dns::Name;
 use hyper::client::HttpConnector;
 use hyper::{Client, Server, StatusCode, Uri};
-use metrics::histogram;
+use metrics::{counter, histogram};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use std::convert::Infallible;
 use std::future::{ready, Ready};
@@ -63,6 +63,12 @@ async fn observe<B>(request: Request<B>, next: Next<B>) -> Response {
     let delta = start.elapsed();
 
     if response.status().is_client_error() || response.status().is_server_error() {
+        counter!(
+            "error_responses", 1,
+            "status" => response.status().to_string(),
+            "method" => method.to_string()
+        );
+
         tracing::error!(
             message = "Serving error",
             "status" = response.status().as_str(),
@@ -71,6 +77,28 @@ async fn observe<B>(request: Request<B>, next: Next<B>) -> Response {
             "time" = delta.as_secs_f64()
         )
     } else {
+        if response.status().is_redirection() {
+            tracing::warn!(
+                message = "Serving redirect",
+                "status" = response.status().as_str(),
+                "uri" = uri.to_string(),
+                "method" = method.as_str(),
+                "time" = delta.as_secs_f64()
+            );
+
+            counter!(
+                "redirect_responses", 1,
+                "status" => response.status().to_string(),
+                "method" => method.to_string()
+            );
+        }
+
+        counter!(
+            "responses", 1,
+            "status" => response.status().to_string(),
+            "method" => method.to_string()
+        );
+
         tracing::info!(
             message = "Serving response",
             "status" = response.status().as_str(),
